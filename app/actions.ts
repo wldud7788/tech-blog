@@ -126,3 +126,51 @@ export const signOutAction = async () => {
   await supabase.auth.signOut();
   return redirect("/sign-in");
 };
+
+export const createPostAction = async (formData: FormData) => {
+  const title = formData.get("title")?.toString();
+  const content = formData.get("content")?.toString();
+  const supabase = createClient();
+  const origin = headers().get("origin");
+  const callbackUrl = formData.get("callbackUrl")?.toString();
+
+  // 현재 사용자 가져오기
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+  if (userError) {
+    return encodedRedirect("error", "/community/post", "Could not fetch user");
+  }
+
+  // 사용자가 로그인한 경우 UUID가져오기
+  const uuid = user?.id;
+
+  if (!title || !content) {
+    return encodedRedirect(
+      "error",
+      "/community/post",
+      "Title and content are required"
+    );
+  }
+
+  // supabase에 게시물 추가
+  const { data, error } = await supabase
+    .from("posts") //posts테이블에 데이터 추가
+    .insert([{ title, content, uuid }]);
+
+  // 에러 시
+  if (error) {
+    return encodedRedirect("error", "/community/post", "Could not create post");
+  }
+  // 성공 시
+  if (callbackUrl) {
+    return redirect(callbackUrl);
+  }
+
+  return encodedRedirect(
+    "success",
+    "/community/post",
+    "Post created successfully."
+  );
+};
